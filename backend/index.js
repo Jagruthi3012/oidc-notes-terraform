@@ -49,7 +49,7 @@ app.post("/api/notes", (req, res) => {
 
   const notes = notesByUser.get(userId) || [];
   const newNote = { id: Date.now(), text: text.trim() };
-  notes.push(newNote);
+  notes.unshift(newNote);
   notesByUser.set(userId, notes);
 
   res.json({ created: newNote });
