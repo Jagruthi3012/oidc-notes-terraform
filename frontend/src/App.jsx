@@ -1,8 +1,18 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "react-oidc-context";
+
+const API_BASE = "http://localhost:8080";
 
 export default function App() {
   const auth = useAuth();
+
+  const [notes, setNotes] = useState([]);
+  const [loadingNotes, setLoadingNotes] = useState(false);
+  const [notesError, setNotesError] = useState(null);
+
+  const [newNote, setNewNote] = useState("");
+  const [saving, setSaving] = useState(false);
+
   const [apiResult, setApiResult] = useState(null);
   const [apiError, setApiError] = useState(null);
   const [calling, setCalling] = useState(false);
@@ -19,32 +29,51 @@ export default function App() {
     return (a + b).toUpperCase();
   }, [username]);
 
+  const token = auth.user?.access_token;
+
   const styles = {
     page: {
       minHeight: "100vh",
       background: "linear-gradient(180deg, #fafafa 0%, #f3f4f6 100%)",
-      padding: "40px 16px",
+      padding: "38px 16px",
       fontFamily:
         'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial',
       color: "#111827",
     },
-    container: {
-      maxWidth: 920,
-      margin: "0 auto",
-    },
+    container: { maxWidth: 980, margin: "0 auto" },
     headerRow: {
       display: "flex",
-      alignItems: "center",
+      alignItems: "flex-end",
       justifyContent: "space-between",
       gap: 12,
       marginBottom: 18,
     },
-    title: { fontSize: 34, fontWeight: 800, letterSpacing: "-0.02em" },
+    title: { fontSize: 34, fontWeight: 900, letterSpacing: "-0.02em" },
     subtitle: { marginTop: 6, color: "#6b7280", lineHeight: 1.5 },
+    pill: {
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 8,
+      fontSize: 12,
+      padding: "6px 10px",
+      borderRadius: 999,
+      border: "1px solid #e5e7eb",
+      background: "#f9fafb",
+      color: "#374151",
+      width: "fit-content",
+      whiteSpace: "nowrap",
+    },
+    dot: (color) => ({
+      width: 8,
+      height: 8,
+      borderRadius: 999,
+      background: color,
+      display: "inline-block",
+    }),
     card: {
       background: "#fff",
       border: "1px solid #e5e7eb",
-      borderRadius: 16,
+      borderRadius: 18,
       boxShadow: "0 6px 18px rgba(17,24,39,0.06)",
       padding: 18,
     },
@@ -75,34 +104,18 @@ export default function App() {
       placeItems: "center",
       background: "#111827",
       color: "#fff",
-      fontWeight: 800,
+      fontWeight: 900,
       letterSpacing: "0.02em",
       flex: "0 0 auto",
     },
-    pill: {
-      display: "inline-flex",
-      alignItems: "center",
-      gap: 8,
-      fontSize: 12,
-      padding: "6px 10px",
-      borderRadius: 999,
-      border: "1px solid #e5e7eb",
-      background: "#f9fafb",
-      color: "#374151",
-      width: "fit-content",
-    },
-    dot: (color) => ({
-      width: 8,
-      height: 8,
-      borderRadius: 999,
-      background: color,
-      display: "inline-block",
-    }),
+    small: { fontSize: 12, color: "#6b7280", lineHeight: 1.5 },
+    sectionTitle: { fontSize: 14, fontWeight: 900, marginBottom: 8 },
+    divider: { height: 1, background: "#e5e7eb", margin: "14px 0" },
     btn: (variant = "primary") => {
       const base = {
         borderRadius: 12,
         padding: "10px 14px",
-        fontWeight: 700,
+        fontWeight: 800,
         border: "1px solid transparent",
         cursor: "pointer",
         transition: "transform 0.04s ease, box-shadow 0.12s ease",
@@ -132,8 +145,72 @@ export default function App() {
       return { ...base, ...variants[variant] };
     },
     btnRow: { display: "flex", flexWrap: "wrap", gap: 10, marginTop: 12 },
-    grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 },
-    sectionTitle: { fontSize: 14, fontWeight: 800, marginBottom: 8, color: "#111827" },
+
+    // Notes UI
+    appGrid: {
+      display: "grid",
+      gridTemplateColumns: "1.2fr 0.8fr",
+      gap: 16,
+      marginTop: 16,
+    },
+    notesCard: {
+      border: "1px solid #e5e7eb",
+      borderRadius: 16,
+      padding: 16,
+      background: "#fff",
+    },
+    input: {
+      width: "100%",
+      borderRadius: 12,
+      border: "1px solid #e5e7eb",
+      padding: "12px 12px",
+      outline: "none",
+      fontSize: 14,
+    },
+    textarea: {
+      width: "100%",
+      minHeight: 92,
+      borderRadius: 12,
+      border: "1px solid #e5e7eb",
+      padding: "12px 12px",
+      outline: "none",
+      fontSize: 14,
+      resize: "vertical",
+      lineHeight: 1.4,
+    },
+    noteList: {
+      marginTop: 12,
+      display: "grid",
+      gap: 10,
+    },
+    noteItem: {
+      border: "1px solid #e5e7eb",
+      borderRadius: 14,
+      padding: 12,
+      background: "#fafafa",
+    },
+    noteText: { whiteSpace: "pre-wrap", wordBreak: "break-word", marginTop: 6 },
+    noteMeta: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 10,
+      color: "#6b7280",
+      fontSize: 12,
+    },
+    tag: {
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 6,
+      padding: "4px 8px",
+      borderRadius: 999,
+      border: "1px solid #e5e7eb",
+      background: "#fff",
+      color: "#374151",
+      fontSize: 12,
+      fontWeight: 700,
+    },
+
     codeBox: {
       background: "#0b1020",
       color: "#e5e7eb",
@@ -146,47 +223,108 @@ export default function App() {
       whiteSpace: "pre-wrap",
       wordBreak: "break-word",
     },
-    small: { fontSize: 12, color: "#6b7280", lineHeight: 1.5 },
-    divider: { height: 1, background: "#e5e7eb", margin: "14px 0" },
     statusCard: (ok) => ({
       borderRadius: 14,
-      padding: 14,
+      padding: 12,
       border: `1px solid ${ok ? "#bbf7d0" : "#fecaca"}`,
       background: ok ? "#f0fdf4" : "#fef2f2",
       color: ok ? "#166534" : "#991b1b",
-      fontWeight: 700,
+      fontWeight: 800,
       fontSize: 13,
+      marginTop: 12,
     }),
   };
-
-  async function callProtectedApi() {
-    setCalling(true);
-    setApiError(null);
-    setApiResult(null);
-
-    try {
-      const res = await fetch("http://localhost:8080/api/ping", {
-        headers: { Authorization: `Bearer ${auth.user?.access_token}` },
-      });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        setApiError(data?.error || `Request failed (${res.status})`);
-      } else {
-        setApiResult(data);
-      }
-    } catch (e) {
-      setApiError(e?.message || "Network error");
-    } finally {
-      setCalling(false);
-    }
-  }
 
   function copy(text) {
     if (!text) return;
     navigator.clipboard.writeText(text);
   }
+
+  async function apiFetch(path, options = {}) {
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        ...(options.headers || {}),
+      },
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data?.error || `Request failed (${res.status})`);
+    }
+    return data;
+  }
+
+  async function loadNotes() {
+    if (!token) return;
+    setLoadingNotes(true);
+    setNotesError(null);
+    try {
+      const data = await apiFetch("/api/notes", { method: "GET" });
+      setNotes(data.notes || []);
+    } catch (e) {
+      setNotesError(e.message);
+    } finally {
+      setLoadingNotes(false);
+    }
+  }
+
+  async function addNote() {
+    const text = newNote.trim();
+    if (!text) return;
+
+    setSaving(true);
+    setNotesError(null);
+    try {
+      const data = await apiFetch("/api/notes", {
+        method: "POST",
+        body: JSON.stringify({ text }),
+      });
+
+      // Optimistic update: add new note on top
+      setNotes((prev) => [data.created, ...prev]);
+      setNewNote("");
+    } catch (e) {
+      setNotesError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function deleteNoteLocal(id) {
+    // optional (local delete). Real delete would need backend endpoint.
+    setNotes((prev) => prev.filter((n) => n.id !== id));
+  }
+
+  async function callProtectedApi() {
+    setCalling(true);
+    setApiError(null);
+    setApiResult(null);
+    try {
+      const data = await apiFetch("/api/ping", { method: "GET" });
+      setApiResult(data);
+    } catch (e) {
+      setApiError(e.message);
+    } finally {
+      setCalling(false);
+    }
+  }
+
+  // Load notes after login (token becomes available)
+  useEffect(() => {
+    if (auth.isAuthenticated && token) {
+      loadNotes();
+    } else {
+      setNotes([]);
+      setNewNote("");
+      setApiResult(null);
+      setApiError(null);
+      setNotesError(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth.isAuthenticated, token]);
 
   if (auth.isLoading) {
     return (
@@ -196,7 +334,7 @@ export default function App() {
             <div style={styles.pill}>
               <span style={styles.dot("#f59e0b")} /> Loading authentication…
             </div>
-            <div style={{ marginTop: 10, fontWeight: 800, fontSize: 18 }}>
+            <div style={{ marginTop: 10, fontWeight: 900, fontSize: 18 }}>
               Checking your session
             </div>
             <div style={styles.small}>
@@ -238,9 +376,9 @@ export default function App() {
       <div style={styles.container}>
         <div style={styles.headerRow}>
           <div>
-            <div style={styles.title}>OIDC Notes App</div>
+            <div style={styles.title}>OIDC Notes</div>
             <div style={styles.subtitle}>
-              OpenID Connect login + OAuth2 protected APIs (Keycloak) + Terraform IaC.
+              Keycloak OIDC login + OAuth2 protected Notes API + Terraform-managed setup.
             </div>
           </div>
 
@@ -255,11 +393,11 @@ export default function App() {
             <div style={styles.hero}>
               <div style={styles.heroLeft}>
                 <div style={{ fontSize: 18, fontWeight: 900 }}>
-                  Secure login with OIDC (Auth Code + PKCE)
+                  A real Notes app demo (OIDC + JWT)
                 </div>
                 <div style={{ marginTop: 8, ...styles.small }}>
-                  Click login to authenticate via Keycloak. The app will receive an ID token
-                  (identity) and an access token (API authorization).
+                  Login via Keycloak using Authorization Code Flow with PKCE.
+                  Your backend APIs require an OAuth2 access token.
                 </div>
 
                 <div style={styles.btnRow}>
@@ -276,17 +414,18 @@ export default function App() {
                   <div>Backend Health: <b>http://localhost:8080/health</b></div>
                 </div>
                 <div style={styles.divider} />
-                <div style={styles.sectionTitle}>What you’ll demo</div>
+                <div style={styles.sectionTitle}>What you can show</div>
                 <div style={styles.small}>
                   ✅ OIDC login <br />
                   ✅ JWT access token <br />
-                  ✅ Protected API call <br />
-                  ✅ (Next) Notes CRUD
+                  ✅ Notes API protected by JWT verification (JWKS) <br />
+                  ✅ Terraform-managed Keycloak configuration
                 </div>
               </div>
             </div>
           ) : (
             <>
+              {/* Top authenticated header */}
               <div style={styles.row}>
                 <div style={styles.avatar}>{initials}</div>
                 <div style={{ flex: 1 }}>
@@ -301,52 +440,115 @@ export default function App() {
                 </button>
               </div>
 
-              <div style={styles.btnRow}>
-                <button style={styles.btn("primary")} onClick={callProtectedApi} disabled={calling}>
-                  {calling ? "Calling API…" : "✅ Call Protected API"}
-                </button>
-                <button
-                  style={styles.btn("secondary")}
-                  onClick={() => copy(auth.user?.access_token)}
-                >
-                  📋 Copy Access Token
-                </button>
-              </div>
-
-              <div style={{ marginTop: 12 }}>
-                {apiResult && (
-                  <div style={styles.statusCard(true)}>
-                    API success: {JSON.stringify(apiResult)}
+              {/* Main app grid */}
+              <div style={styles.appGrid}>
+                {/* Notes */}
+                <div style={styles.notesCard}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ fontSize: 16, fontWeight: 900 }}>My Notes</div>
+                    <div style={styles.tag}>🔒 Protected</div>
                   </div>
-                )}
-                {apiError && (
-                  <div style={styles.statusCard(false)}>
-                    API error: {apiError}
+
+                  <div style={{ marginTop: 10 }}>
+                    <textarea
+                      style={styles.textarea}
+                      placeholder="Write a note… (press Cmd+Enter to save)"
+                      value={newNote}
+                      onChange={(e) => setNewNote(e.target.value)}
+                      onKeyDown={(e) => {
+                        if ((e.metaKey || e.ctrlKey) && e.key === "Enter") addNote();
+                      }}
+                    />
+                    <div style={styles.btnRow}>
+                      <button style={styles.btn("primary")} onClick={addNote} disabled={saving}>
+                        {saving ? "Saving…" : "➕ Add Note"}
+                      </button>
+                      <button style={styles.btn("secondary")} onClick={loadNotes} disabled={loadingNotes}>
+                        {loadingNotes ? "Refreshing…" : "↻ Refresh"}
+                      </button>
+                    </div>
+                    {notesError && <div style={styles.statusCard(false)}>Notes error: {notesError}</div>}
                   </div>
-                )}
-              </div>
 
-              <div style={styles.grid2}>
-                <details open>
-                  <summary style={{ cursor: "pointer", fontWeight: 900, marginBottom: 8 }}>
-                    Token Claims (ID Token)
-                  </summary>
-                  <div style={styles.codeBox}>
-                    {JSON.stringify(auth.user?.profile, null, 2)}
+                  <div style={styles.divider} />
+
+                  {loadingNotes ? (
+                    <div style={styles.small}>Loading notes…</div>
+                  ) : notes.length === 0 ? (
+                    <div style={styles.small}>
+                      No notes yet. Add your first note above. 👆
+                    </div>
+                  ) : (
+                    <div style={styles.noteList}>
+                      {notes
+                        .slice()
+                        .reverse() // newest on top if backend appends
+                        .map((n) => (
+                          <div key={n.id} style={styles.noteItem}>
+                            <div style={styles.noteMeta}>
+                              <span>id: <b>{n.id}</b></span>
+                              <button
+                                style={styles.btn("secondary")}
+                                onClick={() => deleteNoteLocal(n.id)}
+                                title="Local delete (optional)"
+                              >
+                                🗑️ Remove
+                              </button>
+                            </div>
+                            <div style={styles.noteText}>{n.text}</div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                  <div style={{ marginTop: 10, ...styles.small }}>
+                    Notes are stored per-user using your token’s <b>sub</b> claim.
                   </div>
-                </details>
+                </div>
 
-                <details>
-                  <summary style={{ cursor: "pointer", fontWeight: 900, marginBottom: 8 }}>
-                    Access Token (JWT)
-                  </summary>
-                  <div style={styles.codeBox}>{auth.user?.access_token}</div>
-                </details>
-              </div>
+                {/* Developer panel */}
+                <div style={styles.notesCard}>
+                  <div style={{ fontSize: 16, fontWeight: 900 }}>Developer Panel</div>
+                  <div style={{ marginTop: 8, ...styles.small }}>
+                    Useful for demoing OAuth2 + JWT validation.
+                  </div>
 
-              <div style={{ marginTop: 14, ...styles.small }}>
-                Tip: For your resume demo, show the access token being sent to <b>/api/ping</b> and
-                validated via Keycloak’s JWKS.
+                  <div style={styles.btnRow}>
+                    <button style={styles.btn("primary")} onClick={callProtectedApi} disabled={calling}>
+                      {calling ? "Calling…" : "✅ Call /api/ping"}
+                    </button>
+                    <button style={styles.btn("secondary")} onClick={() => copy(token)}>
+                      📋 Copy Access Token
+                    </button>
+                  </div>
+
+                  {apiResult && <div style={styles.statusCard(true)}>API success: {JSON.stringify(apiResult)}</div>}
+                  {apiError && <div style={styles.statusCard(false)}>API error: {apiError}</div>}
+
+                  <div style={styles.divider} />
+
+                  <details open>
+                    <summary style={{ cursor: "pointer", fontWeight: 900, marginBottom: 8 }}>
+                      ID Token Claims
+                    </summary>
+                    <div style={styles.codeBox}>
+                      {JSON.stringify(auth.user?.profile, null, 2)}
+                    </div>
+                  </details>
+
+                  <details style={{ marginTop: 10 }}>
+                    <summary style={{ cursor: "pointer", fontWeight: 900, marginBottom: 8 }}>
+                      Access Token (JWT)
+                    </summary>
+                    <div style={styles.codeBox}>{token}</div>
+                  </details>
+
+                  <div style={{ marginTop: 12, ...styles.small }}>
+                    Backend validates this JWT via Keycloak JWKS:
+                    <div>
+                      <b>{auth.user?.profile?.iss}/protocol/openid-connect/certs</b>
+                    </div>
+                  </div>
+                </div>
               </div>
             </>
           )}
