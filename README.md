@@ -1,30 +1,43 @@
-# OIDC-Secured Notes Application
+# 🔐 OIDC Notes Application
 
-A full-stack Notes application secured using **OpenID Connect (OIDC)** and **OAuth 2.0**, demonstrating secure authentication and authorization with **Keycloak**, and infrastructure provisioned using **Terraform**.
+A full-stack Notes application demonstrating **secure authentication and authorization** using **OpenID Connect (OIDC)** and **OAuth 2.0**, powered by **Keycloak** and provisioned with **Terraform**.
 
 ---
 
-## 🚀 Overview
+## ✨ Features
 
-This project showcases how modern applications implement secure identity and access control using industry-standard protocols.
-
-- Users authenticate via **Keycloak** using OIDC (Authorization Code Flow with PKCE)
-- The frontend receives an **ID Token** (identity) and an **Access Token** (authorization)
-- The backend validates access tokens using **JWKS (JSON Web Key Sets)**
-- Notes are stored and retrieved **per user**, based on JWT claims
-- Keycloak setup (realm, client, redirect URIs) is automated using **Terraform**
+- 🔐 OIDC Authentication (Authorization Code Flow + PKCE)
+- 🪪 JWT-based API Authorization (Access Tokens)
+- 🧠 Per-user data isolation using token claims (`sub`)
+- ⚙️ Infrastructure as Code with Terraform
+- 🐳 Dockerized Keycloak setup
+- 📦 Full-stack app (React + Node.js)
 
 ---
 
 ## 🏗️ Architecture
 
+```text
 Frontend (React)
-→ OIDC Login (PKCE)
-→ Keycloak (Identity Provider)
-→ Issues JWT Access Token
-→ Backend (Node.js + Express)
-→ Validates JWT via JWKS
-→ Protected Notes API
+   |
+   v
+OIDC Login (PKCE)
+   |
+   v
+Keycloak (Identity Provider)
+   |
+   v
+Issues JWT Access Token
+   |
+   v
+Backend (Node.js + Express)
+   |
+   v
+Validates JWT via JWKS
+   |
+   v
+Protected Notes API
+```
 
 ---
 
