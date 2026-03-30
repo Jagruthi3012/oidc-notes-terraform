@@ -99,3 +99,42 @@ If created via Terraform or manually:
 Username: testuser
 Password: Password@123
 ```
+
+Or enable self-registration in Keycloak to create a new user.
+
+---
+
+## 🔄 Application Flow
+
+1. User clicks **Login** in the frontend  
+2. Redirected to Keycloak login page  
+3. After authentication, redirected back with an authorization code  
+4. Frontend exchanges code for:
+   - ID Token (identity)
+   - Access Token (authorization)
+5. Frontend sends access token to backend APIs  
+6. Backend:
+   - Verifies token signature using JWKS  
+   - Validates issuer and expiry  
+   - Extracts user identity (`sub`)  
+7. Notes are stored and returned per authenticated user  
+
+---
+
+## 🔍 Example API Call
+
+```http
+GET /api/notes
+Authorization: Bearer <access_token>
+```
+
+---
+
+## Future Improvements
+
+1. Role-Based Access Control (RBAC)
+2. Persistent database (PostgreSQL / MongoDB)
+3. Refresh token handling
+4. Admin panel for user management
+5. Cloud deployment (AWS / GCP)
+
